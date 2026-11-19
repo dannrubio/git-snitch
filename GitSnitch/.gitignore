@@ -1,0 +1,18 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# VS Code
+.vscode/
+
+# Test results
+TestResults/
+
+# Publish outputs
+publish/
+artifacts/
