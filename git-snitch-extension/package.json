@@ -37,7 +37,7 @@
       ]
     },
     "configuration": {
-      "title": "GitSnitch",
+      "title": "git-snitch-extension",
       "properties": {
         "gitSnitch.executablePath": {
           "type": "string",
@@ -104,7 +104,7 @@
   "keywords": [
     "git",
     "git-blame",
-    "git-snitch",
+    "git-snitch-extension",
     "source-control",
     "code-ownership"
   ],

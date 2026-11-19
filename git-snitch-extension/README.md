@@ -1,6 +1,6 @@
-# git-snitch README
+# git-snitch-extension README
 
-This is the README for your extension "git-snitch". After writing up a brief description, we recommend including the following sections.
+This is the README for your extension "git-snitch-extension". After writing up a brief description, we recommend including the following sections.
 
 ## Features
 
