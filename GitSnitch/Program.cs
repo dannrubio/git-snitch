@@ -22,7 +22,8 @@ for (int i = 0; i < args.Length; i++)
     {
         case "--author":
             if (++i >= args.Length ||
-                string.IsNullOrWhiteSpace(args[i]))
+                string.IsNullOrWhiteSpace(args[i]) ||
+                args[i].StartsWith("--", StringComparison.Ordinal))
             {
                 Fail("Missing value for --author.");
                 return;
@@ -32,7 +33,8 @@ for (int i = 0; i < args.Length; i++)
             break;
 
         case "--sort":
-            if (++i >= args.Length)
+            if (++i >= args.Length ||
+                args[i].StartsWith("-", StringComparison.Ordinal))
             {
                 Fail("Missing value for --sort.");
                 return;
@@ -45,6 +47,7 @@ for (int i = 0; i < args.Length; i++)
                 Fail("--sort must be name or lines.");
                 return;
             }
+
             break;
 
         case "--commits":
@@ -110,8 +113,10 @@ try
                 authorFilter,
                 StringComparison.OrdinalIgnoreCase
             ))
-        .GroupBy(x => x.Author)
-        .ToList();
+            .GroupBy(
+                x => x.Author,
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     if (groups.Count == 0)
     {

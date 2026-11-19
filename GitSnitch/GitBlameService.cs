@@ -115,40 +115,7 @@ public static class GitBlameService
         finally
         {
             if (started)
-            {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process has already exited.
-                }
-                catch (System.ComponentModel.Win32Exception)
-                {
-                    // Unable to terminate the process.
-                }
-
-                if (!process.HasExited)
-                {
-                    try
-                    {
-                        using var cleanupTimeout =
-                            new CancellationTokenSource(
-                                TimeSpan.FromSeconds(5));
-
-                        await process.WaitForExitAsync(
-                            cleanupTimeout.Token);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Cleanup exceeded its timeout.
-                    }
-                }
-            }
+                await CleanupProcessAsync(process);
         }
     }
 
@@ -298,5 +265,35 @@ public static class GitBlameService
 
         hash = parts[0];
         return true;
+    }
+
+    private static async Task CleanupProcessAsync(Process process)
+    {
+        try
+        {
+            if (process.HasExited)
+                return;
+
+            process.Kill(entireProcessTree: true);
+
+            using var cleanupTimeout =
+                new CancellationTokenSource(
+                    TimeSpan.FromSeconds(5));
+
+            await process.WaitForExitAsync(
+                cleanupTimeout.Token);
+        }
+        catch (InvalidOperationException)
+        {
+            // Process already exited or is unavailable.
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Process termination failed.
+        }
+        catch (OperationCanceledException)
+        {
+            // Cleanup timed out.
+        }
     }
 }
