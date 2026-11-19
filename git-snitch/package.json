@@ -3,6 +3,7 @@
   "displayName": "GitSnitch",
   "description": "Extend \"git blame\" by grouping source code lines by author.",
   "version": "0.0.1",
+  "publisher": "dannrubio",
   "engines": {
     "vscode": "^1.146.0"
   },
@@ -18,34 +19,52 @@
         "title": "Hello World"
       },
       {
-        "command": "gitSnitch.analyze",
+        "command": "gitSnitch.analyzeFile",
         "title": "Git Snitch: Analyze File"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "gitSnitch.analyze",
+          "command": "gitSnitch.analyzeFile",
           "when": "resourceScheme == file && !explorerResourceIsFolder",
           "group": "navigation"
         }
       ],
       "editor/context": [
         {
-          "command": "gitSnitch.analyze",
+          "command": "gitSnitch.analyzeFile",
           "when": "resourceScheme == file",
           "group": "navigation"
         }
       ]
-    }
-  },
-  "configuration": {
-    "title": "Git Snitch",
-    "properties": {
-      "gitSnitch.executablePath": {
-        "type": "string",
-        "default": "",
-        "description": "Absolute path to git-snitch.exe. Leave empty to find git-snitch on PATH."
+    },
+    "configuration": {
+      "title": "GitSnitch",
+      "properties": {
+        "gitSnitch.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to git-snitch.exe. Leave empty to find git-snitch on PATH."
+        },
+        "gitSnitch.author": {
+          "type": "string",
+          "default": "",
+          "description": "Filter blame results by author"
+        },
+        "gitSnitch.sort": {
+          "type": "string",
+          "enum": ["name", "lines"],
+          "default": "name"
+        },
+        "gitSnitch.commits": {
+          "type": "boolean",
+          "default": false
+        },
+        "gitSnitch.ignoreWhitespace": {
+          "type": "boolean",
+          "default": false
+        }
       }
     }
   },
