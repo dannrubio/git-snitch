@@ -87,10 +87,15 @@ public static class GitBlameService
 
             var exitTask = process.WaitForExitAsync(token);
 
-            await Task.WhenAll(
-                stdoutTask,
-                stderrTask,
-                exitTask);
+            // Detect a failed reader immediately instead of waiting for Git to exit.
+            // A reader that stops draining its pipe can otherwise block Git.
+            var pending = new List<Task> { stdoutTask, stderrTask, exitTask };
+            while (pending.Count > 0)
+            {
+                var completed = await Task.WhenAny(pending);
+                await completed; // Propagate failure/cancellation immediately.
+                pending.Remove(completed);
+            }
 
             var output = await stdoutTask;
             var error = await stderrTask;
@@ -149,85 +154,83 @@ public static class GitBlameService
     public static IReadOnlyList<BlameLine> Parse(
         string porcelain)
     {
-        var result = new List<BlameLine>();
+        ArgumentNullException.ThrowIfNull(porcelain);
 
-        string author = "Unknown";
+        var result = new List<BlameLine>();
+        string author = "";
         string commit = "";
         int lineNumber = 0;
         bool hasHeader = false;
         bool hasAuthor = false;
+        bool hasFilename = false;
 
         using var reader = new StringReader(porcelain);
-
         string? line;
 
         while ((line = reader.ReadLine()) is not null)
         {
-            if (TryParseHeader(
-                line,
-                out var hash,
-                out var number))
+            if (TryParseHeader(line, out var hash, out var number))
             {
                 if (hasHeader)
                     throw new InvalidOperationException(
-                        "Incomplete Git blame record.");
+                        "Incomplete Git blame record: missing source line.");
 
                 commit = hash;
                 lineNumber = number;
-                author = "Unknown";
+                author = "";
                 hasAuthor = false;
+                hasFilename = false;
                 hasHeader = true;
+                continue;
             }
-            else if (line.StartsWith(
-                "author ",
-                StringComparison.Ordinal))
+
+            if (!hasHeader)
+                throw new InvalidOperationException(
+                    $"Unexpected Git blame content outside a record: {line}");
+
+            if (line.StartsWith('\t'))
             {
-                if (hasHeader)
-                {
-                    author = line[7..];
-                    hasAuthor = true;
-                }
-            }
-            else if (line.StartsWith('\t'))
-            {
-                if (!hasHeader || !hasAuthor)
+                if (!hasAuthor || !hasFilename)
                     throw new InvalidOperationException(
-                        "Invalid Git blame record: missing header or author.");
+                        "Invalid Git blame record: missing author or filename metadata.");
 
-                result.Add(new BlameLine(
-                    author,
-                    lineNumber,
-                    line[1..],
-                    commit));
-
+                result.Add(new BlameLine(author, lineNumber, line[1..], commit));
                 hasHeader = false;
+                continue;
             }
+
+            if (line.StartsWith("author ", StringComparison.Ordinal))
+            {
+                author = line[7..];
+                hasAuthor = !string.IsNullOrWhiteSpace(author);
+            }
+            else if (line.StartsWith("filename ", StringComparison.Ordinal))
+            {
+                hasFilename = line.Length > "filename ".Length;
+            }
+            else if (string.IsNullOrWhiteSpace(line) || !line.Contains(' '))
+            {
+                throw new InvalidOperationException(
+                    $"Malformed Git blame metadata: {line}");
+            }
+            // Other porcelain metadata (author-time, summary, boundary, etc.)
+            // is allowed; Git can add metadata fields over time.
         }
 
         if (hasHeader)
             throw new InvalidOperationException(
                 "Incomplete Git blame record at end of output.");
 
-        if (result.Any(x => x.LineNumber <= 0) ||
-            result.Select(x => x.LineNumber).Distinct().Count()
-                != result.Count)
+        // Full-file blame must contain exactly the line numbers 1..N.
+        var seen = new bool[result.Count];
+        foreach (var item in result)
         {
-            throw new InvalidOperationException(
-                "Git blame contains invalid or duplicate line numbers.");
-        }
-
-        var orderedNumbers = result
-            .Select(x => x.LineNumber)
-            .OrderBy(x => x)
-            .ToArray();
-
-        for (int i = 0; i < orderedNumbers.Length; i++)
-        {
-            if (orderedNumbers[i] != i + 1)
-            {
+            int index = item.LineNumber - 1;
+            if (index < 0 || index >= seen.Length || seen[index])
                 throw new InvalidOperationException(
-                    "Git blame contains missing or out-of-order line numbers.");
-            }
+                    "Git blame contains invalid, duplicate, or missing line numbers.");
+
+            seen[index] = true;
         }
 
         return result;
