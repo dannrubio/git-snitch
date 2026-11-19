@@ -1,7 +1,7 @@
 
 {
-  "name": "git-snitch",
-  "displayName": "GitSnitch",
+  "name": "git-snitch-extension",
+  "displayName": "git-snitch-extension",
   "description": "Extend git blame by grouping source code lines by author.",
   "version": "0.0.1",
   "publisher": "dannrubio",
@@ -104,7 +104,7 @@
   "keywords": [
     "git",
     "git-blame",
-    "git-snitch",
+    "git-snitch-extension",
     "source-control",
     "code-ownership"
   ],

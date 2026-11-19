@@ -1,0 +1,112 @@
+
+{
+  "name": "git-snitch-extension",
+  "displayName": "git-snitch-extension",
+  "description": "Extend git blame by grouping source code lines by author.",
+  "version": "0.0.1",
+  "publisher": "dannrubio",
+  "engines": {
+    "vscode": "^1.146.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitSnitch.analyzeFile",
+        "title": "Git Snitch: Analyze File"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "gitSnitch.analyzeFile",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gitSnitch.analyzeFile",
+          "when": "resourceScheme == file",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "GitSnitch",
+      "properties": {
+        "gitSnitch.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to git-snitch.exe. Leave empty to use git-snitch from PATH."
+        },
+        "gitSnitch.author": {
+          "type": "string",
+          "default": "",
+          "description": "Filter Git blame results by author."
+        },
+        "gitSnitch.sort": {
+          "type": "string",
+          "enum": [
+            "name",
+            "lines"
+          ],
+          "default": "name",
+          "description": "Sort author results."
+        },
+        "gitSnitch.commits": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include commit information."
+        },
+        "gitSnitch.ignoreWhitespace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ignore whitespace changes."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.19.2",
+    "@types/vscode": "^1.146.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "keywords": [
+    "git",
+    "git-blame",
+    "git-snitch",
+    "source-control",
+    "code-ownership"
+  ],
+  "type": "commonjs"
+}
