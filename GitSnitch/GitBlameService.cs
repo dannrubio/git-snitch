@@ -121,13 +121,32 @@ public static class GitBlameService
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
-                        await process.WaitForExitAsync(
-                            CancellationToken.None);
                     }
                 }
                 catch (InvalidOperationException)
                 {
-                    // Process already exited.
+                    // Process has already exited.
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    // Unable to terminate the process.
+                }
+
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        using var cleanupTimeout =
+                            new CancellationTokenSource(
+                                TimeSpan.FromSeconds(5));
+
+                        await process.WaitForExitAsync(
+                            cleanupTimeout.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Cleanup exceeded its timeout.
+                    }
                 }
             }
         }
@@ -228,6 +247,20 @@ public static class GitBlameService
         {
             throw new InvalidOperationException(
                 "Git blame contains invalid or duplicate line numbers.");
+        }
+
+        var orderedNumbers = result
+            .Select(x => x.LineNumber)
+            .OrderBy(x => x)
+            .ToArray();
+
+        for (int i = 0; i < orderedNumbers.Length; i++)
+        {
+            if (orderedNumbers[i] != i + 1)
+            {
+                throw new InvalidOperationException(
+                    "Git blame contains missing or out-of-order line numbers.");
+            }
         }
 
         return result;

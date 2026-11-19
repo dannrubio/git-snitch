@@ -1,7 +1,9 @@
 
 using GitSnitch;
 
-if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
+if (args.Length == 0 ||
+    (args.Length == 1 &&
+     args[0] is "--help" or "-h"))
 {
     PrintHelp();
     return;
@@ -108,7 +110,19 @@ try
                 authorFilter,
                 StringComparison.OrdinalIgnoreCase
             ))
-        .GroupBy(x => x.Author);
+        .GroupBy(x => x.Author)
+        .ToList();
+
+    if (groups.Count == 0)
+    {
+        Console.WriteLine(
+            authorFilter is null
+                ? "No attributable lines found."
+                : $"No lines found for author: {authorFilter}"
+        );
+
+        return;
+    }
 
     var ordered = sort == "lines"
         ? groups.OrderByDescending(g => g.Count())
@@ -146,9 +160,11 @@ catch (OperationCanceledException)
 }
 catch (Exception ex) when (
     ex is InvalidOperationException or
+    TimeoutException or
     System.ComponentModel.Win32Exception or
     IOException or
-    UnauthorizedAccessException)
+    UnauthorizedAccessException or
+    ArgumentException)
 {
     Fail(ex.Message);
 }
