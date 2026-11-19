@@ -1,0 +1,83 @@
+{
+  "name": "git-snitch",
+  "displayName": "GitSnitch",
+  "description": "Extend \"git blame\" by grouping source code lines by author.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.146.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  // "main": "./dist/extension.js",
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "git-snitch.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "gitSnitch.analyze",
+        "title": "Git Snitch: Analyze File"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "gitSnitch.analyze",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "gitSnitch.analyze",
+          "when": "resourceScheme == file",
+          "group": "navigation"
+        }
+      ]
+    }    
+  },
+  "configuration": {
+    "title": "Git Snitch",
+    "properties": {
+      "gitSnitch.executablePath": {
+        "type": "string",
+        "default": "",
+        "description": "Absolute path to git-snitch.exe. Leave empty to find git-snitch on PATH."
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.146.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "typescript-eslint": "^8.61.1",
+    "eslint": "^10.5.0",
+    "esbuild": "^0.28.1",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^6.0.3",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
+}

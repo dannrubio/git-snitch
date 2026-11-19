@@ -1,18 +1,62 @@
-﻿# .NET build outputs
+﻿
+# ==========================================
+# Git Snitch - .NET CLI + VS Code Extension
+# ==========================================
+
+# .NET build outputs
 **/bin/
 **/obj/
+**/Debug/
+**/Release/
 
 # Visual Studio
 .vs/
 *.user
 *.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
 
 # VS Code
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # Test results
 TestResults/
+coverage/
+.vscode-test/
 
 # Build artifacts
 publish/
 artifacts/
+dist/
+out/
+
+# Node.js / TypeScript
+node_modules/
+*.tsbuildinfo
+*.tgz
+
+# VS Code extension packages
+*.vsix
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
