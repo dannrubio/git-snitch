@@ -1,7 +1,8 @@
+
 {
   "name": "git-snitch",
   "displayName": "GitSnitch",
-  "description": "Extend \"git blame\" by grouping source code lines by author.",
+  "description": "Extend git blame by grouping source code lines by author.",
   "version": "0.0.1",
   "publisher": "dannrubio",
   "engines": {
@@ -10,14 +11,10 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
+  "activationEvents": [],
   "contributes": {
     "commands": [
-      {
-        "command": "git-snitch.helloWorld",
-        "title": "Hello World"
-      },
       {
         "command": "gitSnitch.analyzeFile",
         "title": "Git Snitch: Analyze File"
@@ -45,25 +42,31 @@
         "gitSnitch.executablePath": {
           "type": "string",
           "default": "",
-          "description": "Absolute path to git-snitch.exe. Leave empty to find git-snitch on PATH."
+          "description": "Absolute path to git-snitch.exe. Leave empty to use git-snitch from PATH."
         },
         "gitSnitch.author": {
           "type": "string",
           "default": "",
-          "description": "Filter blame results by author"
+          "description": "Filter Git blame results by author."
         },
         "gitSnitch.sort": {
           "type": "string",
-          "enum": ["name", "lines"],
-          "default": "name"
+          "enum": [
+            "name",
+            "lines"
+          ],
+          "default": "name",
+          "description": "Sort author results."
         },
         "gitSnitch.commits": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Include commit information."
         },
         "gitSnitch.ignoreWhitespace": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Ignore whitespace changes."
         }
       }
     }
@@ -98,6 +101,12 @@
     "diff": "^8.0.4",
     "serialize-javascript": "^7.0.6"
   },
-  "keywords": [],
+  "keywords": [
+    "git",
+    "git-blame",
+    "git-snitch",
+    "source-control",
+    "code-ownership"
+  ],
   "type": "commonjs"
 }
