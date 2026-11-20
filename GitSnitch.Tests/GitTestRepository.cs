@@ -81,20 +81,62 @@ internal sealed class GitTestRepository : IAsyncDisposable
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        // Windows can briefly retain handles after child process exit.
-        for (var attempt = 0; attempt < 5; attempt++)
+        const int maxAttempts = 10;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
             try
             {
-                if (Directory.Exists(Root)) Directory.Delete(Root, recursive: true);
-                break;
+                if (!Directory.Exists(Root))
+                    return;
+
+                ClearReadOnlyAttributes(Root);
+
+                Directory.Delete(Root, recursive: true);
+                return;
             }
-            catch (IOException) when (attempt < 4) { Thread.Sleep(100); }
-            catch (UnauthorizedAccessException) when (attempt < 4) { Thread.Sleep(100); }
+            catch (Exception ex) when (
+                (ex is IOException ||
+                ex is UnauthorizedAccessException) &&
+                attempt < maxAttempts)
+            {
+                await Task.Delay(200);
+            }
         }
-        return ValueTask.CompletedTask;
+    }
+
+    private static void ClearReadOnlyAttributes(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return;
+
+        foreach (var file in Directory.EnumerateFiles(
+            directory, "*", SearchOption.AllDirectories))
+        {
+            var attributes = System.IO.File.GetAttributes(file);
+
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+            {
+                System.IO.File.SetAttributes(
+                    file,
+                    attributes & ~FileAttributes.ReadOnly);
+            }
+        }
+
+        foreach (var subdirectory in Directory.EnumerateDirectories(
+            directory, "*", SearchOption.AllDirectories))
+        {
+            var attributes = System.IO.File.GetAttributes(subdirectory);
+
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+            {
+                System.IO.File.SetAttributes(
+                    subdirectory,
+                    attributes & ~FileAttributes.ReadOnly);
+            }
+        }
     }
 }
 
