@@ -116,12 +116,14 @@ public static class GitBlameService
         }
         finally
         {
+            using var cleanupDeadline = new CancellationTokenSource(
+                TimeSpan.FromSeconds(5));
             if (started && !completedNormally)
             {
                 // Stop the producer before waiting for readers that may be
                 // blocked on redirected stdout/stderr pipes.
                 linkedSource.Cancel();
-                await CleanupProcessAsync(process);
+                await CleanupProcessAsync(process, cleanupDeadline.Token);
             }
 
             // Observe all reader/process task exceptions, even after an early
@@ -133,7 +135,7 @@ public static class GitBlameService
                 var observation = Task.WhenAll(tasks);
                 try
                 {
-                    await observation.WaitAsync(TimeSpan.FromSeconds(5));
+                    await observation.WaitAsync(cleanupDeadline.Token);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -238,7 +240,7 @@ public static class GitBlameService
             }
             else if (line.StartsWith("filename ", StringComparison.Ordinal))
             {
-                hasFilename = line.Length > "filename ".Length;
+                hasFilename = !string.IsNullOrWhiteSpace(line["filename ".Length..]);
             }
             else if (line.Equals("boundary", StringComparison.Ordinal))
             {
@@ -307,7 +309,8 @@ public static class GitBlameService
         return true;
     }
 
-    private static async Task CleanupProcessAsync(Process process)
+    private static async Task CleanupProcessAsync(
+        Process process, CancellationToken cleanupToken)
     {
         try
         {
@@ -316,12 +319,7 @@ public static class GitBlameService
 
             process.Kill(entireProcessTree: true);
 
-            using var cleanupTimeout =
-                new CancellationTokenSource(
-                    TimeSpan.FromSeconds(5));
-
-            await process.WaitForExitAsync(
-                cleanupTimeout.Token);
+            await process.WaitForExitAsync(cleanupToken);
         }
         catch (InvalidOperationException ex)
         {

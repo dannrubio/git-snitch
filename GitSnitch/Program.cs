@@ -196,6 +196,7 @@ static void PrintHelp()
     Console.WriteLine("  --commits            Show commit hashes");
     Console.WriteLine("  -w                   Ignore whitespace changes");
     Console.WriteLine("  --ignore-whitespace  Same as -w");
+    Console.WriteLine("  --                   End option parsing");
     Console.WriteLine("  -h, --help           Show help");
 }
 
