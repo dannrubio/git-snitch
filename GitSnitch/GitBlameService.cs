@@ -64,63 +64,89 @@ public static class GitBlameService
         var token = linkedSource.Token;
 
         bool started = false;
+        Task<string>? stdoutTask = null;
+        Task<string>? stderrTask = null;
+        Task? exitTask = null;
+        bool completedNormally = false;
 
         try
         {
             token.ThrowIfCancellationRequested();
 
             if (!process.Start())
-                throw new InvalidOperationException(
-                    "Unable to start Git.");
+                throw new InvalidOperationException("Unable to start Git.");
 
-            started = true;    
+            started = true;
+            stdoutTask = ReadBoundedAsync(
+                process.StandardOutput, MaxOutputChars, token);
+            stderrTask = ReadBoundedAsync(
+                process.StandardError, MaxErrorChars, token);
+            exitTask = process.WaitForExitAsync(token);
 
-            var stdoutTask = ReadBoundedAsync(
-                process.StandardOutput,
-                MaxOutputChars,
-                token);
-
-            var stderrTask = ReadBoundedAsync(
-                process.StandardError,
-                MaxErrorChars,
-                token);
-
-            var exitTask = process.WaitForExitAsync(token);
-
-            // Detect a failed reader immediately instead of waiting for Git to exit.
-            // A reader that stops draining its pipe can otherwise block Git.
+            // Surface a failed reader promptly; a stopped reader can block Git.
             var pending = new List<Task> { stdoutTask, stderrTask, exitTask };
             while (pending.Count > 0)
             {
                 var completed = await Task.WhenAny(pending);
-                await completed; // Propagate failure/cancellation immediately.
+                await completed;
                 pending.Remove(completed);
             }
 
+            token.ThrowIfCancellationRequested();
             var output = await stdoutTask;
             var error = await stderrTask;
 
             if (process.ExitCode != 0)
-            {
                 throw new InvalidOperationException(
                     !string.IsNullOrWhiteSpace(error)
                         ? error.Trim()
                         : $"git blame exited with code {process.ExitCode}.");
-            }
 
-            return Parse(output);
+            var parsed = Parse(output, token);
+            token.ThrowIfCancellationRequested();
+            completedNormally = true;
+            return parsed;
         }
         catch (OperationCanceledException)
             when (timeoutSource.IsCancellationRequested &&
-                !cancellationToken.IsCancellationRequested)
+                  !cancellationToken.IsCancellationRequested)
         {
             throw new TimeoutException(
                 $"Git blame timed out after {effectiveTimeout.TotalSeconds:g} seconds.");
         }
         finally
         {
-            if (started)
+            if (started && !completedNormally)
+            {
+                // Stop the producer before waiting for readers that may be
+                // blocked on redirected stdout/stderr pipes.
+                linkedSource.Cancel();
                 await CleanupProcessAsync(process);
+            }
+
+            // Observe all reader/process task exceptions, even after an early
+            // failure. Bound the wait so cleanup cannot hang indefinitely.
+            var tasks = new Task?[] { stdoutTask, stderrTask, exitTask }
+                .OfType<Task>().ToArray();
+            if (tasks.Length > 0)
+            {
+                var observation = Task.WhenAll(tasks);
+                try
+                {
+                    await observation.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    Trace.WriteLine($"Git task completion during cleanup: {ex}");
+                    // Observe eventual failures if a task is still pending.
+                    _ = observation.ContinueWith(
+                        t => Trace.WriteLine(t.Exception),
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnFaulted |
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+            }
         }
     }
 
@@ -151,10 +177,15 @@ public static class GitBlameService
         return builder.ToString();
     }
 
-    public static IReadOnlyList<BlameLine> Parse(
-        string porcelain)
+    public static IReadOnlyList<BlameLine> Parse(string porcelain) =>
+        Parse(porcelain, CancellationToken.None);
+
+    private static IReadOnlyList<BlameLine> Parse(
+        string porcelain,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(porcelain);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var result = new List<BlameLine>();
         string author = "";
@@ -169,6 +200,7 @@ public static class GitBlameService
 
         while ((line = reader.ReadLine()) is not null)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (TryParseHeader(line, out var hash, out var number))
             {
                 if (hasHeader)
@@ -208,6 +240,10 @@ public static class GitBlameService
             {
                 hasFilename = line.Length > "filename ".Length;
             }
+            else if (line.Equals("boundary", StringComparison.Ordinal))
+            {
+                // Git emits this standalone field for boundary commits.
+            }
             else if (string.IsNullOrWhiteSpace(line) || !line.Contains(' '))
             {
                 throw new InvalidOperationException(
@@ -225,6 +261,7 @@ public static class GitBlameService
         var seen = new bool[result.Count];
         foreach (var item in result)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             int index = item.LineNumber - 1;
             if (index < 0 || index >= seen.Length || seen[index])
                 throw new InvalidOperationException(
@@ -286,17 +323,22 @@ public static class GitBlameService
             await process.WaitForExitAsync(
                 cleanupTimeout.Token);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            // Process already exited or is unavailable.
+            Trace.WriteLine($"Git process already exited or unavailable: {ex.Message}");
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (System.ComponentModel.Win32Exception ex)
         {
-            // Process termination failed.
+            Trace.WriteLine($"Git process termination failed: {ex}");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            // Cleanup timed out.
+            Trace.WriteLine($"Git process cleanup timed out: {ex}");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // Never replace the original failure with a cleanup exception.
+            Trace.WriteLine($"Unexpected Git process cleanup failure: {ex}");
         }
     }
 }

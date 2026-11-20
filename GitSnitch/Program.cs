@@ -120,6 +120,7 @@ try
 
     if (groups.Count == 0)
     {
+        Console.WriteLine($"Git Snitch: {file}");
         Console.WriteLine(
             authorFilter is null
                 ? "No attributable lines found."
