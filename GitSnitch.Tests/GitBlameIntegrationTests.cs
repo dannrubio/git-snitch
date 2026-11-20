@@ -45,7 +45,7 @@ public sealed class GitBlameIntegrationTests
     }
 
     [Fact]
-    public async Task ReadAsync_UncommittedChanges_BlamesCommittedContent()
+    public async Task ReadAsync_UncommittedChanges_BlamesWorkingTreeContent()
     {
         await using var repo = await GitTestRepository.CreateAsync();
         await repo.WriteAndCommitAsync("sample.cs", "committed\n");
@@ -54,6 +54,23 @@ public sealed class GitBlameIntegrationTests
         var line = Assert.Single(await GitBlameService.ReadAsync(repo.File("sample.cs"), false));
         Assert.Equal("uncommitted", line.Code);
         Assert.Equal("Not Committed Yet", line.Author);
+    }
+
+    [Fact]
+    public async Task ReadAsync_AbsolutePathOutsideRepository_UsesTargetRepository()
+    {
+        await using var repo = await GitTestRepository.CreateAsync();
+        await repo.WriteAndCommitAsync("nested/sample.cs", "absolute path works\n");
+
+        // xUnit's working directory is outside this independently created repository.
+        Assert.False(Path.GetFullPath(Environment.CurrentDirectory).StartsWith(
+            Path.GetFullPath(repo.Root) + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase));
+
+        var line = Assert.Single(await GitBlameService.ReadAsync(
+            repo.File("nested/sample.cs"), false));
+        Assert.Equal("Test Author", line.Author);
+        Assert.Equal("absolute path works", line.Code);
     }
 
     [Fact]

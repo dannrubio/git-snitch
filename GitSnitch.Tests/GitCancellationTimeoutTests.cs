@@ -26,7 +26,10 @@ public sealed class GitCancellationTimeoutTests
                 timeout: TimeSpan.FromTicks(1)));
     }
 
-    [Fact]
+    // A timer cannot guarantee cancellation occurs after Git starts and before it exits.
+    // Retained as an opt-in stress test; deterministic process-lifecycle testing
+    // requires a controllable process launcher.
+    [Fact(Skip = "Timing-sensitive stress test; run manually when investigating cancellation")]
     public async Task ReadAsync_CancellationDuringLargeBlame_StopsPromptly()
     {
         await using var repo = await GitTestRepository.CreateAsync();

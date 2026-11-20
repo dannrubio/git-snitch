@@ -57,6 +57,30 @@ public sealed class GitBlameServiceTests
             GitBlameService.Parse("not porcelain"));
 
     [Fact]
+    public void Parse_Sha256CommitHash_AcceptsRecord()
+    {
+        var sha256 = new string('a', 64);
+        var line = Assert.Single(GitBlameService.Parse(
+            Record(1, "hello").Replace(Hash, sha256)));
+        Assert.Equal(sha256, line.Commit);
+    }
+
+    [Fact]
+    public void Parse_UnicodeAuthorAndEmbeddedTab_PreservesContent()
+    {
+        var porcelain = Record(1, "alpha\tbeta")
+            .Replace("Test Author", "José 山田");
+        var line = Assert.Single(GitBlameService.Parse(porcelain));
+        Assert.Equal("José 山田", line.Author);
+        Assert.Equal("alpha\tbeta", line.Code);
+    }
+
+    [Fact]
+    public void Parse_TruncatedRecord_Throws() =>
+        Assert.Throws<InvalidOperationException>(() =>
+            GitBlameService.Parse($"{Hash} 1 1 1\nauthor Test Author\nfilename Program.cs\n"));
+
+    [Fact]
     public async Task ReadAsync_PreCancelled_Throws()
     {
         using var cancellation = new CancellationTokenSource();

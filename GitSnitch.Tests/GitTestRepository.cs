@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Text;
 
 namespace GitSnitch.Tests;
@@ -75,8 +76,31 @@ internal sealed class GitTestRepository : IAsyncDisposable
         }
         catch
         {
-            if (!process.HasExited)
-                process.Kill(entireProcessTree: true);
+            // Do not mask the original failure with a cleanup exception.
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+
+                using var cleanupDeadline = new CancellationTokenSource(
+                    TimeSpan.FromSeconds(5));
+                await process.WaitForExitAsync(cleanupDeadline.Token);
+
+                // Drain both redirected streams before disposing the process.
+                await Task.WhenAll(stdout, stderr).WaitAsync(cleanupDeadline.Token);
+            }
+            catch (Exception cleanupError) when (
+                cleanupError is InvalidOperationException or Win32Exception or
+                IOException or OperationCanceledException or TimeoutException)
+            {
+                Trace.WriteLine($"Test process cleanup failed: {cleanupError}");
+                _ = Task.WhenAll(stdout, stderr).ContinueWith(
+                    t => Trace.WriteLine(t.Exception),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted |
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
             throw;
         }
     }

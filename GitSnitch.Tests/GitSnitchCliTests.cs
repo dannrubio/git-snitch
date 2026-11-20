@@ -76,6 +76,18 @@ public sealed class GitSnitchCliTests
     }
 
     [Fact]
+    public async Task AbsolutePathFromOutsideRepository_ExitsZero()
+    {
+        await using var repo = await GitTestRepository.CreateAsync();
+        await repo.WriteAndCommitAsync("nested/sample.cs", "hello from another repository\n");
+
+        var result = await CliAsync(Path.GetTempPath(), repo.File("nested/sample.cs"));
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Test Author", result.Stdout);
+        Assert.Contains("hello from another repository", result.Stdout);
+    }
+
+    [Fact]
     public async Task MissingGitFile_ExitsOneAndWritesStderr()
     {
         await using var repo = await GitTestRepository.CreateAsync();
