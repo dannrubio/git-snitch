@@ -29,8 +29,15 @@ public static class GitBlameService
             throw new ArgumentOutOfRangeException(
                 nameof(timeout), "Timeout must be positive.");
 
+        var fullPath = Path.GetFullPath(file);
+
+        var workingDirectory = Path.GetDirectoryName(fullPath)
+            ?? throw new InvalidOperationException(
+                "Unable to determine the file directory.");
+
         var start = new ProcessStartInfo("git")
         {
+            WorkingDirectory = workingDirectory,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -43,10 +50,13 @@ public static class GitBlameService
         start.ArgumentList.Add("--line-porcelain");
 
         if (ignoreWhitespace)
+        {
             start.ArgumentList.Add("-w");
+        }
 
         start.ArgumentList.Add("--");
         start.ArgumentList.Add(file);
+        start.ArgumentList.Add(Path.GetFileName(fullPath));
 
         using var process = new Process
         {
