@@ -52,7 +52,8 @@ public sealed class GitBlameIntegrationTests
         await File.WriteAllTextAsync(repo.File("sample.cs"), "uncommitted\n");
 
         var line = Assert.Single(await GitBlameService.ReadAsync(repo.File("sample.cs"), false));
-        Assert.Equal("committed", line.Code);
+        Assert.Equal("uncommitted", line.Code);
+        Assert.Equal("Not Committed Yet", line.Author);
     }
 
     [Fact]
