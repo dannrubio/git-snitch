@@ -55,7 +55,6 @@ public static class GitBlameService
         }
 
         start.ArgumentList.Add("--");
-        start.ArgumentList.Add(file);
         start.ArgumentList.Add(Path.GetFileName(fullPath));
 
         using var process = new Process
