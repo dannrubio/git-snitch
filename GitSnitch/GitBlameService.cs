@@ -18,7 +18,30 @@ public static class GitBlameService
         bool ignoreWhitespace,
         CancellationToken cancellationToken = default,
         TimeSpan? timeout = null)
+        => await ReadCoreAsync(file, ignoreWhitespace, cancellationToken, timeout,
+            static start => new Process { StartInfo = start }, null);
+
+    // Internal seam for deterministic process-lifecycle tests. The public API
+    // always starts Git with the arguments and working directory below.
+    internal static Task<IReadOnlyList<BlameLine>> ReadWithProcessAsync(
+        string file,
+        bool ignoreWhitespace,
+        Func<ProcessStartInfo, Process> processFactory,
+        Action<Process>? onStarted = null,
+        CancellationToken cancellationToken = default,
+        TimeSpan? timeout = null)
+        => ReadCoreAsync(file, ignoreWhitespace, cancellationToken, timeout,
+            processFactory, onStarted);
+
+    private static async Task<IReadOnlyList<BlameLine>> ReadCoreAsync(
+        string file,
+        bool ignoreWhitespace,
+        CancellationToken cancellationToken,
+        TimeSpan? timeout,
+        Func<ProcessStartInfo, Process> processFactory,
+        Action<Process>? onStarted)
     {
+        ArgumentNullException.ThrowIfNull(processFactory);
         if (string.IsNullOrWhiteSpace(file))
             throw new ArgumentException(
                 "A file path is required.", nameof(file));
@@ -57,10 +80,8 @@ public static class GitBlameService
         start.ArgumentList.Add("--");
         start.ArgumentList.Add(Path.GetFileName(fullPath));
 
-        using var process = new Process
-        {
-            StartInfo = start
-        };
+        using var process = processFactory(start)
+            ?? throw new InvalidOperationException("Process factory returned null.");
 
         using var timeoutSource = new CancellationTokenSource(
             effectiveTimeout);
@@ -86,6 +107,7 @@ public static class GitBlameService
                 throw new InvalidOperationException("Unable to start Git.");
 
             started = true;
+            onStarted?.Invoke(process);
             stdoutTask = ReadBoundedAsync(
                 process.StandardOutput, MaxOutputChars, token);
             stderrTask = ReadBoundedAsync(

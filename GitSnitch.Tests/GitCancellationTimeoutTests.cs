@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GitSnitch;
 using Xunit;
 
@@ -20,27 +21,87 @@ public sealed class GitCancellationTimeoutTests
         await using var repo = await GitTestRepository.CreateAsync();
         await repo.WriteAndCommitAsync("sample.cs", "content\n");
 
-        // A one-tick deadline is already expired by the first async scheduling point.
         await Assert.ThrowsAsync<TimeoutException>(() =>
             GitBlameService.ReadAsync(repo.File("sample.cs"), false,
                 timeout: TimeSpan.FromTicks(1)));
     }
 
-    // A timer cannot guarantee cancellation occurs after Git starts and before it exits.
-    // Retained as an opt-in stress test; deterministic process-lifecycle testing
-    // requires a controllable process launcher.
-    [Fact(Skip = "Timing-sensitive stress test; run manually when investigating cancellation")]
-    public async Task ReadAsync_CancellationDuringLargeBlame_StopsPromptly()
+    [Fact]
+    public async Task ReadAsync_CancellationAfterProcessStarted_TerminatesChild()
     {
-        await using var repo = await GitTestRepository.CreateAsync();
-        var content = string.Join('\n', Enumerable.Range(1, 60000).Select(i => $"line {i}")) + "\n";
-        await repo.WriteAndCommitAsync("large.cs", content);
-
         using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(10));
-        var task = GitBlameService.ReadAsync(repo.File("large.cs"), false, cancellation.Token);
+        var started = new TaskCompletionSource<int>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var operation = GitBlameService.ReadWithProcessAsync(
+            "unused.cs", false, CreateBlockingProcess,
+            process => started.TrySetResult(process.Id),
+            cancellation.Token, TimeSpan.FromSeconds(20));
+
+        var pid = await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await task.WaitAsync(TimeSpan.FromSeconds(15)));
+            await operation.WaitAsync(TimeSpan.FromSeconds(10)));
+        AssertProcessExited(pid);
+    }
+
+    [Fact]
+    public async Task ReadAsync_TimeoutAfterProcessStarted_TerminatesChild()
+    {
+        var started = new TaskCompletionSource<int>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var operation = GitBlameService.ReadWithProcessAsync(
+            "unused.cs", false, CreateBlockingProcess,
+            process => started.TrySetResult(process.Id),
+            timeout: TimeSpan.FromSeconds(2));
+
+        var pid = await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAsync<TimeoutException>(async () =>
+            await operation.WaitAsync(TimeSpan.FromSeconds(10)));
+        AssertProcessExited(pid);
+    }
+
+    // The process remains alive until the service kills it. No arbitrary
+    // large-file workload or cancellation delay is involved.
+    private static Process CreateBlockingProcess(ProcessStartInfo gitStart)
+    {
+        var start = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            WorkingDirectory = gitStart.WorkingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        if (OperatingSystem.IsWindows())
+        {
+            start.ArgumentList.Add("/d");
+            start.ArgumentList.Add("/c");
+            start.ArgumentList.Add("ping -n 60 127.0.0.1 >nul");
+        }
+        else
+        {
+            start.ArgumentList.Add("-c");
+            start.ArgumentList.Add("sleep 60");
+        }
+
+        return new Process { StartInfo = start };
+    }
+
+    private static void AssertProcessExited(int pid)
+    {
+        try
+        {
+            using var child = Process.GetProcessById(pid);
+            Assert.True(child.HasExited, $"Child process {pid} remains running.");
+        }
+        catch (ArgumentException)
+        {
+            // The OS no longer has this PID: process termination succeeded.
+        }
     }
 }

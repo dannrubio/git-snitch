@@ -96,4 +96,41 @@ public sealed class GitSnitchCliTests
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("git-snitch:", result.Stderr);
     }
+    [Fact]
+    public async Task AuthorFilter_MatchesCaseInsensitively()
+    {
+        await using var repo = await GitTestRepository.CreateAsync();
+        await repo.WriteAndCommitAsync("sample.cs", "hello\n", "Alice");
+
+        var result = await CliAsync(repo.Root, "--author", "aLiCe", "sample.cs");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Author: Alice (1 lines)", result.Stdout);
+        Assert.Contains("hello", result.Stdout);
+    }
+
+    [Theory]
+    [InlineData("name", "Alice", "Zoe")]
+    [InlineData("lines", "Zoe", "Alice")]
+    public async Task Sort_OrdersAuthorHeadings(string sort, string first, string second)
+    {
+        await using var repo = await GitTestRepository.CreateAsync();
+        await repo.WriteAndCommitAsync("sample.cs", "one\ntwo\nthree\n", "Zoe");
+        await repo.WriteAndCommitAsync("sample.cs", "ONE\ntwo\nthree\n", "Alice");
+
+        var result = await CliAsync(repo.Root, "--sort", sort, "sample.cs");
+
+        Assert.Equal(0, result.ExitCode);
+        var firstIndex = result.Stdout.IndexOf($"Author: {first} (", StringComparison.Ordinal);
+        var secondIndex = result.Stdout.IndexOf($"Author: {second} (", StringComparison.Ordinal);
+        Assert.True(firstIndex >= 0 && secondIndex > firstIndex, result.Stdout);
+    }
+
+    [Fact]
+    public void ApplicationRuntimeConfiguration_Exists()
+    {
+        var runtimeConfig = Path.ChangeExtension(ApplicationDll, ".runtimeconfig.json");
+        Assert.True(File.Exists(runtimeConfig),
+            $"CLI runtime configuration is missing: {runtimeConfig}");
+    }
 }
