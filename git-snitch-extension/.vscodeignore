@@ -8,3 +8,5 @@ node_modules/**
 tsconfig.json
 eslint.config.mjs
 esbuild.js
+.vscode-test.mjs
+vsc-extension-quickstart.md
