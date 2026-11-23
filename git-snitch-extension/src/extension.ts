@@ -105,12 +105,17 @@ export function activate(
           }
         );
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : String(error);
+        const err = error as NodeJS.ErrnoException;
 
-        output.appendLine(`ERROR: ${message}`);
+        if (err.code === "ENOENT") {
+          vscode.window.showErrorMessage(
+            "Git Snitch executable was not found. " +
+            "Configure gitSnitch.executablePath or add git-snitch to PATH."
+          );
+          return;
+        }
+
+        output.appendLine(`ERROR: ${err.message}`);
 
         vscode.window.showErrorMessage(
           "Git Snitch analysis failed. Check the output panel."

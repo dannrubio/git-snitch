@@ -1,71 +1,94 @@
-# git-snitch-extension README
+# Git Snitch
 
-This is the README for your extension "git-snitch-extension". After writing up a brief description, we recommend including the following sections.
+Git Snitch is a Visual Studio Code extension that helps developers understand who last modified each line of a Git-tracked source file.
+
+It uses Git blame information to group source lines by author, making it easier to review code ownership and modification history.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- Analyze the currently selected source file.
+- Group Git blame results by author.
+- View source lines attributed to each author.
+- Sort results by author name or number of lines.
+- Filter results by author.
+- Display commit information when supported by the Git Snitch CLI.
+- Ignore whitespace changes when analyzing Git history.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- Visual Studio Code
+- Git installed and available on your system
+- Git Snitch command-line application installed or published
+- A Git repository containing the file you want to analyze
 
-## Extension Settings
+## Installation
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Install the Git Snitch extension in Visual Studio Code.
+2. Publish or install the Git Snitch CLI.
+3. Configure the `gitSnitch.executablePath` setting to point to the Git Snitch executable.
+4. Open a Git-tracked source file.
 
-For example:
+## Usage
 
-This extension contributes the following settings:
+1. Open a file in a Git repository.
+2. Right-click the file in the editor or Explorer.
+3. Select **Git Snitch: Analyze File**.
+4. Review the analysis results.
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## Configuration
 
-## Known Issues
+### `gitSnitch.executablePath`
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Specifies the path to the Git Snitch command-line executable.
 
-## Release Notes
+Example for Windows:
 
-Users appreciate release notes as you update your extension.
+```json
+{
+  "gitSnitch.executablePath": "C:\\Tools\\GitSnitch\\git-snitch.exe"
+}
+```
 
-### 1.0.0
+## Troubleshooting
 
-Initial release of ...
+**Git Snitch executable not found**
 
-### 1.0.1
+Verify that the executable exists and that `gitSnitch.executablePath` points to the correct location.
 
-Fixed issue #.
+**Git blame fails**
 
-### 1.1.0
+Ensure the selected file belongs to a Git repository and that Git is installed.
 
-Added features X, Y, and Z.
+**No results**
 
----
+Check that the file is tracked by Git and contains committed history.
 
-## Following extension guidelines
+## Development
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Install dependencies:
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+```bash
+npm ci
+```
 
-## Working with Markdown
+Compile and lint:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+```bash
+npm run compile
+```
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+Run extension tests:
 
-## For more information
+```bash
+npm test
+```
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+Package the extension:
 
-**Enjoy!**
+```bash
+npx @vscode/vsce package
+```
+
+## License
+
+See the project's LICENSE file for licensing information.

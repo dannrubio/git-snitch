@@ -5,14 +5,24 @@
   "description": "Extend git blame by grouping source code lines by author.",
   "version": "0.0.1",
   "publisher": "dannrubio",
+  "license": "MIT",
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dannrubio/git-snitch.git",
+    "directory": "git-snitch-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/dannrubio/git-snitch/issues"
+  },
+  "homepage": "https://github.com/dannrubio/git-snitch#readme",
   "engines": {
     "vscode": "^1.146.0"
   },
   "categories": [
     "Other"
   ],
-  "main": "./dist/extension.js",
-  "activationEvents": [],
   "contributes": {
     "commands": [
       {
