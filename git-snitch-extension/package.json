@@ -1,8 +1,7 @@
-
 {
   "name": "git-snitch-extension",
-  "displayName": "git-snitch-extension",
-  "description": "Extend git blame by grouping source code lines by author.",
+  "displayName": "Git Snitch",
+  "description": "Analyze Git blame history and group source code lines by author.",
   "version": "0.0.1",
   "publisher": "dannrubio",
   "license": "MIT",
@@ -47,7 +46,7 @@
       ]
     },
     "configuration": {
-      "title": "git-snitch-extension",
+      "title": "Git Snitch",
       "properties": {
         "gitSnitch.executablePath": {
           "type": "string",
@@ -77,6 +76,13 @@
           "type": "boolean",
           "default": false,
           "description": "Ignore whitespace changes."
+        },
+        "gitSnitch.timeoutSeconds": {
+          "type": "number",
+          "default": 45,
+          "minimum": 1,
+          "maximum": 600,
+          "description": "Maximum duration of a Git Snitch analysis in seconds."
         }
       }
     }

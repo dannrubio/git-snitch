@@ -92,3 +92,9 @@ npx @vscode/vsce package
 ## License
 
 See the project's LICENSE file for licensing information.
+
+### Analysis timeout and cancellation
+
+The `gitSnitch.timeoutSeconds` setting defaults to 45 seconds (range 1–600).
+While analyzing, select **Cancel** on the VS Code progress notification to stop the CLI process.
+Only one analysis runs at a time; errors and CLI stderr appear in the Git Snitch output channel.
