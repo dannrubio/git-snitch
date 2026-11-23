@@ -98,3 +98,7 @@ See the project's LICENSE file for licensing information.
 The `gitSnitch.timeoutSeconds` setting defaults to 45 seconds (range 1–600).
 While analyzing, select **Cancel** on the VS Code progress notification to stop the CLI process.
 Only one analysis runs at a time; errors and CLI stderr appear in the Git Snitch output channel.
+
+## Side-by-side results
+
+Run **Git Snitch: Analyze File** to open a themed results editor beside your source file. Authors are grouped into collapsible sections. Select a line number to jump to that line in the source editor; use Expand all and Collapse all to navigate larger results. The Output channel remains available for diagnostics.

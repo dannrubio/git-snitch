@@ -1,10 +1,14 @@
 import * as vscode from "vscode";
 import { AnalysisError, AnalysisOptions, runAnalysis } from "./services/gitSnitchRunner";
+import { parseAnalysisResults } from "./services/analysisResults";
+import { ResultsPanel } from "./views/resultsPanel";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Git Snitch");
   context.subscriptions.push(output);
   let running = false;
+  const resultsPanel = new ResultsPanel();
+  context.subscriptions.push(resultsPanel);
 
   const command = vscode.commands.registerCommand("gitSnitch.analyzeFile", async (resource?: vscode.Uri) => {
     const uri = resource?.scheme === "file" ? resource : vscode.window.activeTextEditor?.document.uri;
@@ -56,7 +60,10 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           if (token.isCancellationRequested) controller.abort();
           const result = await runAnalysis(executable, uri.fsPath, options, timeoutMs, controller.signal);
-          if (result.stdout) output.appendLine(result.stdout);
+          if (result.stdout) {
+            output.appendLine(result.stdout);
+            resultsPanel.show(uri, parseAnalysisResults(result.stdout, options.commits));
+          }
           if (result.stderr) output.appendLine(result.stderr);
           void vscode.window.showInformationMessage("Git Snitch analysis completed.");
         } finally {
