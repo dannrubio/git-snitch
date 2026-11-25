@@ -133,4 +133,17 @@ public sealed class GitSnitchCliTests
         Assert.True(File.Exists(runtimeConfig),
             $"CLI runtime configuration is missing: {runtimeConfig}");
     }
+    [Fact]
+    public async Task JsonFormat_ProducesOnlyJsonOnStdout()
+    {
+        await using var repo = await GitTestRepository.CreateAsync();
+        await repo.WriteAndCommitAsync("sample.cs", "hello\n");
+        var result = await CliAsync(repo.Root, "--format", "json", "--commits", "sample.cs");
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("", result.Stderr);
+        using var doc = System.Text.Json.JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, doc.RootElement.GetProperty("totalLines").GetInt32());
+        Assert.Equal("hello", doc.RootElement.GetProperty("groups")[0].GetProperty("lines")[0].GetProperty("code").GetString());
+    }
+
 }

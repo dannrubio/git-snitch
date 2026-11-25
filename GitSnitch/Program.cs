@@ -1,90 +1,22 @@
-
 using GitSnitch;
+using GitSnitch.CommandLine;
+using GitSnitch.Formatters;
+using GitSnitch.Services;
 
-if (args.Length == 0 ||
-    (args.Length == 1 &&
-     args[0] is "--help" or "-h"))
+CliOptions options;
+try
 {
-    PrintHelp();
+    options = CliArgumentParser.Parse(args);
+}
+catch (ArgumentException ex)
+{
+    Fail(ex.Message);
     return;
 }
 
-string? file = null;
-string? authorFilter = null;
-string sort = "name";
-
-bool commits = false;
-bool ignoreWhitespace = false;
-
-for (int i = 0; i < args.Length; i++)
+if (options.ShowHelp)
 {
-    switch (args[i])
-    {
-        case "--author":
-            if (++i >= args.Length ||
-                string.IsNullOrWhiteSpace(args[i]) ||
-                args[i].StartsWith("-", StringComparison.Ordinal))
-            {
-                Fail("Missing value for --author.");
-                return;
-            }
-
-            authorFilter = args[i];
-            break;
-
-        case "--sort":
-            if (++i >= args.Length ||
-                args[i].StartsWith("-", StringComparison.Ordinal))
-            {
-                Fail("Missing value for --sort.");
-                return;
-            }
-
-            sort = args[i];
-
-            if (sort is not ("name" or "lines"))
-            {
-                Fail("--sort must be name or lines.");
-                return;
-            }
-
-            break;
-
-        case "--commits":
-            commits = true;
-            break;
-
-        case "-w":
-        case "--ignore-whitespace":
-            ignoreWhitespace = true;
-            break;
-
-        case "--":
-            if (file is not null || i + 2 != args.Length)
-            {
-                Fail("Expected exactly one file after --.");
-                return;
-            }
-
-            file = args[i + 1];
-            i = args.Length;
-            break;
-
-        default:
-            if (args[i].StartsWith('-') || file is not null)
-            {
-                Fail($"Unexpected argument: {args[i]}");
-                return;
-            }
-
-            file = args[i];
-            break;
-    }
-}
-
-if (string.IsNullOrWhiteSpace(file))
-{
-    Fail("A file is required.");
+    PrintHelp();
     return;
 }
 
@@ -100,65 +32,12 @@ Console.CancelKeyPress += handler;
 
 try
 {
-    var lines = await GitBlameService.ReadAsync(
-        file,
-        ignoreWhitespace,
-        cancellation.Token
-    );
-
-    var groups = lines
-        .Where(x =>
-            authorFilter is null ||
-            x.Author.Contains(
-                authorFilter,
-                StringComparison.OrdinalIgnoreCase
-            ))
-            .GroupBy(
-                x => x.Author,
-                StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-    if (groups.Count == 0)
-    {
-        Console.WriteLine($"Git Snitch: {file}");
-        Console.WriteLine(
-            authorFilter is null
-                ? "No attributable lines found."
-                : $"No lines found for author: {authorFilter}"
-        );
-
-        return;
-    }
-
-    var ordered = sort == "lines"
-        ? groups.OrderByDescending(g => g.Count())
-            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
-        : groups.OrderBy(
-            g => g.Key,
-            StringComparer.OrdinalIgnoreCase
-        );
-
-    Console.WriteLine($"Git Snitch: {file}");
-
-    foreach (var group in ordered)
-    {
-        Console.WriteLine(
-            $"\nAuthor: {group.Key} ({group.Count()} lines)"
-        );
-
-        Console.WriteLine(new string('-', 55));
-
-        foreach (var line in group.OrderBy(x => x.LineNumber))
-        {
-            var suffix = commits
-                ? $" [{line.Commit[..Math.Min(8, line.Commit.Length)]}]"
-                : "";
-
-            Console.WriteLine(
-                $"{line.LineNumber,5} | {line.Code}{suffix}"
-            );
-        }
-    }
+    var lines = await GitBlameService.ReadAsync(options.FilePath,
+        options.IgnoreWhitespace, cancellation.Token);
+    var result = BlameAnalysisService.Analyze(lines, options, cancellation.Token);
+    IOutputFormatter formatter = options.Format == OutputFormat.Json
+        ? new JsonOutputFormatter() : new TextOutputFormatter();
+    await formatter.WriteAsync(result, options, Console.Out, cancellation.Token);
 }
 catch (OperationCanceledException)
 {
@@ -193,6 +72,7 @@ static void PrintHelp()
     Console.WriteLine("Options:");
     Console.WriteLine("  --author NAME        Filter by author");
     Console.WriteLine("  --sort name|lines    Sort results");
+    Console.WriteLine("  --format text|json   Output format (default: text)");
     Console.WriteLine("  --commits            Show commit hashes");
     Console.WriteLine("  -w                   Ignore whitespace changes");
     Console.WriteLine("  --ignore-whitespace  Same as -w");
