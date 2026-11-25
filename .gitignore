@@ -27,6 +27,7 @@
 TestResults/
 coverage/
 .vscode-test/
+*-results.*
 
 # Build artifacts
 publish/
